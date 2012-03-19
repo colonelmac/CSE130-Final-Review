@@ -44,10 +44,15 @@ let s = find_sorin fruitd "peach";;
 
 let rec add_derrick d k v =
     match d with 
-    | Empty -> (Node(k, v, Empty, Empty)) (* insert node *)
-    | Node(key, val, l, r) when k = key -> (Node(k, v, l, r)) (* overwrite node *)
-    | Node(key, val, l, r) -> 
+    | Empty -> Node(k, v, Empty, Empty) (* insert node *)
+    | Node(key, _, l, r) when k = key -> Node(k, v, l, r) (* overwrite node *)
+    | Node(key, value, l, r) -> 
         if k < key 
-        then Node(key, val, (add_derrick(l, k, v)), r)
-        else Node(key, val, l, (add_derrick(r, k, v)))
+        then Node(key, value, (add_derrick l k v), r)
+        else Node(key, value, l, (add_derrick r k v))
 ;;
+
+let d0 = fruitd in
+let d1 = add_derrick d0 "banana" 5.0 in
+let d2 = add_derrick d1 "mango" 10.25 in 
+(find_derrick d2 "banana", find_derrick d2 "mango", find_derrick d2 "cherry");;
