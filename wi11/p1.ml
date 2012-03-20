@@ -52,7 +52,41 @@ let rec add_derrick d k v =
         else Node(key, value, l, (add_derrick r k v))
 ;;
 
+(*
 let d0 = fruitd in
 let d1 = add_derrick d0 "banana" 5.0 in
 let d2 = add_derrick d1 "mango" 10.25 in 
 (find_derrick d2 "banana", find_derrick d2 "mango", find_derrick d2 "cherry");;
+*)
+
+(* map: applys function to each item in the list *)
+(* returns a list of results *)
+let rec map f l =
+    match l with
+    | [] -> []
+    | (h::t) -> (f h)::(map f t)
+;;
+
+(* fold: aka reduce, accumulate, or compress *)
+(* recusively processing parts of a datastructure *)
+(* ouput of previous function is input of next *)
+(* curr appears to be applied every time *)
+let rec fold f curr l =
+    match l with
+    | [] -> curr
+    | h::t -> fold f (f h curr) t
+;;
+
+(* implement: val fold_dict: (string -> 'a -> 'b -> 'b) -> 'a dist -> 'b *)
+(* such that: fold fun base dict returns fold left over in order transeral *)
+(* if you swap the location of the aggregator, you will switch between inorder and post order *)
+let rec fold_dict f b d =
+    match d with
+    | Empty -> b
+    | Node(k, v, l, r) -> 
+        let x = (fold_dict f b l) in
+        (fold_dict f (f k v x) r)
+;;
+
+let a = fold_dict (fun k v b -> v +. b) 0.0 fruitd;;
+let b = fold_dict (fun k v b -> b ^ ", " ^ k) "" fruitd;
