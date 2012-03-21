@@ -1,0 +1,389 @@
+<html>
+<head>
+<style>
+    h4 {
+
+        font-family: verdana;
+    }
+</style>
+</head>
+<body>
+
+<h4>Problem 1 - OCaml</h4>
+
+<pre>
+<code>
+
+(* polymorphic dictionary *)
+type 'a dict = Empty | Node of string * 'a * 'a dict * 'a dict
+
+(* binary search oriented tree - left is lt parent *)
+let fruitd =
+    Node ("grape", 2.65,
+        Node ("banana", 1.50,
+            Node ("apple", 2.25, Empty, Empty),
+            Node ("cherry", 2.75, Empty, Empty)),
+        Node ("orange", 0.75,
+            Node ("kiwi", 3.99, Empty, Empty),
+            Node ("peach", 1.99, Empty, Empty)))
+
+(* implement: val find: 'a dict -> string -> 'a *)
+(* such that: find fruitd "cherry" returns 2.75 *)
+
+(* my implementation *)
+
+let rec find_derrick d k = 
+    match d with
+    | Empty -> raise Not_found
+    | Node(key, x, _, _) when key = k -> x
+    | Node(key, x, y, z) -> 
+        if key > k then (find_derrick y k) else (find_derrick z k)
+;;
+
+(* sorin's implementation *)
+
+let rec find_sorin d k = 
+    match d with
+    | Empty -> raise Not_found
+    | Node(k', v', l, r) ->
+        if k = k' then v' else
+            if k < k' then (find_sorin l k) else (find_sorin r k)
+;;
+
+let d = find_derrick fruitd "peach";;
+let s = find_sorin fruitd "peach";;
+
+(* implement: val find: 'a dict -> string -> 'a -> 'a dict *)
+(* such that: add fruitd "strawberry" 4.00 returns fruitd with "strawberry" added *)
+
+(* my implementation *)
+
+let rec add_derrick d k v =
+    match d with 
+    | Empty -> Node(k, v, Empty, Empty) (* insert node *)
+    | Node(key, _, l, r) when k = key -> Node(k, v, l, r) (* overwrite node *)
+    | Node(key, value, l, r) -> 
+        if k < key 
+        then Node(key, value, (add_derrick l k v), r)
+        else Node(key, value, l, (add_derrick r k v))
+;;
+
+(*
+let d0 = fruitd in
+let d1 = add_derrick d0 "banana" 5.0 in
+let d2 = add_derrick d1 "mango" 10.25 in 
+(find_derrick d2 "banana", find_derrick d2 "mango", find_derrick d2 "cherry");;
+*)
+
+(* map: applys function to each item in the list *)
+(* returns a list of results *)
+let rec map f l =
+    match l with
+    | [] -> []
+    | (h::t) -> (f h)::(map f t)
+;;
+
+(* fold: aka reduce, accumulate, or compress *)
+(* recusively processing parts of a datastructure *)
+(* ouput of previous function is input of next *)
+(* curr appears to be applied every time *)
+let rec fold f curr l =
+    match l with
+    | [] -> curr
+    | h::t -> fold f (f h curr) t
+;;
+
+(* implement: val fold_dict: (string -> 'a -> 'b -> 'b) -> 'a dist -> 'b *)
+(* such that: fold fun base dict returns fold left over in order transeral *)
+(* if you swap the location of the aggregator, you will switch between inorder and post order *)
+let rec fold_dict f b d =
+    match d with
+    | Empty -> b
+    | Node(k, v, l, r) -> 
+        let x = (fold_dict f b l) in
+        (fold_dict f (f k v x) r)
+;;
+
+let a = fold_dict (fun k v b -> v +. b) 0.0 fruitd;;
+let b = fold_dict (fun k v b -> b ^ ", " ^ k) "" fruitd;
+
+</code>
+</pre>
+
+<h4>Problem 2 - Python to OCaml</h4>
+
+<pre>
+<code>
+
+(* wi11 problem 2 *)
+
+(* python-style namespaces using ocaml *)
+
+type name_space = 
+| EmptyNameSpace 
+| Info of (string * value) list * name_space and 
+    value = 
+    | Int of int 
+    | Method of (name_space -> int -> int)
+
+(* testing...
+let top_ns = Info([("derp",Int(1))], EmptyNameSpace)
+let sub_ns = Info([("herp",Int(5))], top_ns)
+*)
+
+(* python
+
+class SimpleObj1:
+    a = 0
+    def f(self, i): return i + 1
+
+class SimpleObj2(SimpleObj1):
+    def g(self, i): return i + 2
+
+SimpleObj2()
+
+*)
+
+(* conversion of python to ocaml *)
+
+let method_f self i = i + 1;;
+let simpleObj1 = Info([("a", Int(0)); ("f", Method(method_f))], EmptyNameSpace)
+
+let method_g self i = i + 2
+let simpleObj2 = Info([("g", Method(method_g))], simpleObj1)
+
+(* Problem 2a *)
+
+(* implement: lookup: name_space -> string -> value *)
+
+let rec lookup ns key = 
+    let rec find k l = 
+        match l with
+        | [] -> raise Not_found
+        | (key, value)::t -> 
+            if key = k then value else (find k t)
+    in
+    match ns with
+    | EmptyNameSpace -> raise Not_found 
+    | Info(keys, parent) ->
+        try (find key keys)
+        with
+        | Not_found ->
+            (lookup parent key)
+;;
+
+
+(* Problem 2b *)
+
+exception TypeError
+let to_int value =
+    match value with 
+    | Int(i) -> i
+    | _      -> raise TypeError
+
+let to_method value = 
+    match value with 
+    | Method(m) -> m
+    | _         -> raise TypeError
+
+(* python
+
+class SimpleObj3:
+    a = 10
+    def f(self, i): return self.a + i 
+
+OBJ3 = SimpleObj3()
+
+*)
+
+(* redo python in ocaml - self is a namespace! *)
+
+let method_f self i = (to_int (lookup self "a")) + i 
+
+let obj3 = Info([("a", Int(10)); ("f", Method(method_f))], EmptyNameSpace)
+
+(* Problem 2c *)
+
+(* invoke_method: name_space -> string -> int -> int *)
+
+let invoke_method self name i = (to_method (lookup self name)) self i
+
+let f_result = invoke_method obj3 "f" 3
+
+
+</code>
+</pre>
+
+<h4>Problem 3 - Python Decorators</h4>
+
+<pre>
+<code>
+
+# Problem 3
+# 
+# Decorates each call to the function
+# 
+#
+
+# Function decorator
+def print_first_k_args_fn(k):
+    def g(f):
+        def h(*args, **kwargs):
+            for i, arg in enumerate(args):
+                if i == k: break
+                print "Arg %d: %s" % (i+1, arg)     
+            ret = f(*args, **kwargs)
+            print "Return: %d" % (ret)
+            return ret
+        return h    
+    return g
+        
+# Class decorator
+class print_first_k_args_c(object):
+    def __init__(self, k):
+        self.k = k
+
+    def __call__(self, f):
+        def wrapper(*args, **kwargs):
+            for i, arg in enumerate(args):
+                if i == self.k: break
+                print "Arg %d: %s" % (i+1, arg)     
+            ret = f(*args, **kwargs)
+            print "Return: %d" % (ret)
+            return ret
+        return wrapper
+
+
+@print_first_k_args_fn(1)
+def sum(a, b): return a + b
+
+sum(5, 4)
+
+@print_first_k_args_c(1)
+def fac(n):
+    if n <= 0: return 1
+    else: return n * fac(n - 1)
+
+fac(3)
+
+
+</code>
+</pre>
+
+<h4>Problem 4 - Python Arrays</h4>
+
+<pre>
+<code>
+
+# Problem 4a 
+
+#img1 = [[255,255, 0, 0,255,255],
+#       [255,255, 0, 0,255,255],
+#       [ 0, 0,255, 0, 0, 0],
+#       [ 0, 0,255,255, 0, 0],
+#       [255, 0, 0, 0, 0,255],
+#       [ 0,255,255,255,255, 0]]
+
+def create_image(width, height, c):
+    return [[c for w in range(width)] for h in range(height)]
+
+# Problem 4b
+
+def well_formed(img):
+    height = len(img)
+    for row in img:
+        for cell in row:
+            if len(row) != height:
+                return False
+            if cell < 0 or cell > 255:
+                return False
+    return True
+
+# Problem 4c
+
+def fill_rect(img, x0, y0, x1, y1, c):
+    try:
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                img[y][x] = c
+    except IndexError:
+        print "oops!"
+
+#rect = create_image(5, 5, 255)
+#fill_rect(rect, 0, 0, 5, 5, 0)
+
+# Problem 4d
+
+img4 =  [[ 0, 3, 0, 3, 0], 
+        [ 0, 3, 0, 3, 0], 
+        [ 0, 0, 3, 0, 0], 
+        [ 5, 0, 0, 0, 5], 
+        [ 0, 5, 5, 5, 0]]
+
+def fill_region_derrick(img, oldc, newc, x, y, c):
+    img[y][x] = newc
+    
+    # four directions: up, down, left, right
+    if y < len(img) - 1:
+        if img[y + 1][x] == oldc:
+            fill_region_derrick(img, oldc, newc, x, y+1, c)
+    if y > 0:
+        if img[y - 1][x] == oldc:
+            fill_region_derrick(img, oldc, newc, x, y-1, c)
+
+    if x < len(img) - 1:
+        if img[y][x + 1] == oldc:
+            fill_region_derrick(img, oldc, newc, x+1, y, c)
+    
+    if x > 0:
+        if img[y][x - 1] == oldc:
+            fill_region_derrick(img, oldc, newc, x-1, y, c)
+
+
+def fill_region_sorin(img, oldc, newc, x, y, c):
+    img[y][x] = newc
+
+    print "at %d, %d" % (y, x)
+
+    for (x1, y1) in [(x, y+1), (x, y-1), (x+1, y), (x-1, y)]:
+        if x1 >= 0 and x1 <= len(img) - 1 and y1 >= 0 and y1 <= len(img) - 1:  
+            if img[y1][x1] == oldc: 
+                print "moving to %d, %d" % (y1, x1)
+                fill_region_sorin(img, oldc, newc, x1, y1, c)
+
+fill_region_sorin(img4, 0, 10, 1, 2, 100)
+
+print img4
+
+</code>
+</pre>
+
+<h4>Problem 5 - Prolog</h4>
+
+<pre>
+<code>
+
+% Problem 5a
+
+sat(var(X)) :- X = 1.
+sat(not(var(X))) :- X = 0.
+
+sat(and([])).
+sat(and([X|Tail])) :- sat(X), sat(and(Tail)).
+
+sat(or([])) :- fail.
+sat(or([X|Tail])) :- sat(X).
+set(or([_|Tail])) :- sat(or(Tail)).
+
+% Problem 5b
+
+bool(X) :- X = 0.
+bool(X) :- X = 1.
+bools([]).
+bools([X|Tail]) :- bool(X), bools(Tail).
+
+</code>
+</pre>
+
+</body>
+</html>
